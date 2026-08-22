@@ -14,7 +14,7 @@ jobs:
 
     steps:
     - name: Baixar código do repositório
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Criar pasta de build e compilar
       run: |
@@ -24,7 +24,7 @@ jobs:
         make iso
 
     - name: Salvar ISO e CUE como artefato
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: PS1-Cubo3D-ISO
         path: |
