@@ -1,65 +1,52 @@
-name: Compilar ISO PS1
+name: Build PS1 Game
 
 on:
   push:
     branches: [ "main", "master" ]
-  workflow_dispatch:
-
-env:
-  PSN00BSDK: /usr/local
+  pull_request:
+    branches: [ "main", "master" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Baixar codigo do repositorio
-      uses: actions/checkout@v4
+      - name: Checkout do projeto
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-    - name: Instalar dependencias no Ubuntu
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-mipsel-linux-gnu g++-mipsel-linux-gnu cmake build-essential git libtinyxml2-dev pkg-config libpng-dev
+      - name: Instalar dependencias e compilador MIPS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            gcc-mipsel-linux-gnu \
+            g++-mipsel-linux-gnu \
+            genisoimage
 
-    - name: Criar arquivo de Toolchain MIPS
-      run: |
-        cat << 'EOF' > $GITHUB_WORKSPACE/ps1-toolchain.cmake
-        set(CMAKE_SYSTEM_NAME Generic)
-        set(CMAKE_SYSTEM_PROCESSOR mips)
-        set(CMAKE_C_COMPILER mipsel-linux-gnu-gcc)
-        set(CMAKE_CXX_COMPILER mipsel-linux-gnu-g++)
-        set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-        EOF
+      - name: Criar atalhos pro PSn00bSDK (symlinks)
+        run: |
+          sudo ln -sf /usr/bin/mipsel-linux-gnu-gcc /usr/local/bin/mipsel-none-elf-gcc
+          sudo ln -sf /usr/bin/mipsel-linux-gnu-g++ /usr/local/bin/mipsel-none-elf-g++
+          sudo ln -sf /usr/bin/mipsel-linux-gnu-as /usr/local/bin/mipsel-none-elf-as
+          sudo ln -sf /usr/bin/mipsel-linux-gnu-ld /usr/local/bin/mipsel-none-elf-ld
+          sudo ln -sf /usr/bin/mipsel-linux-gnu-ar /usr/local/bin/mipsel-none-elf-ar
+          sudo ln -sf /usr/bin/mipsel-linux-gnu-objcopy /usr/local/bin/mipsel-none-elf-objcopy
 
-    - name: Compilar e instalar mkpsxiso
-      run: |
-        git clone --recursive https://github.com/Lameguy64/mkpsxiso.git
-        cd mkpsxiso
-        mkdir build && cd build
-        cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-        make -j$(nproc)
-        sudo make install
+      - name: Compilar e instalar PSn00bSDK
+        run: |
+          git clone --recursive https://github.com/Lameguy64/PSn00bSDK.git
+          cd PSn00bSDK
+          mkdir build && cd build
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+          make -j$(nproc)
+          sudo make install
 
-    - name: Compilar e instalar PSn00bSDK
-      run: |
-        git clone --recursive https://github.com/Lameguy64/PSn00bSDK.git
-        cd PSn00bSDK
-        mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/ps1-toolchain.cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-        make -j$(nproc)
-        sudo make install
-
-    - name: Compilar a ISO do Cubo 3D
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=$GITHUB_WORKSPACE/ps1-toolchain.cmake ..
-        make iso
-
-    - name: Salvar ISO e CUE como artefato
-      uses: actions/upload-artifact@v4
-      with:
-        name: PS1-Cubo3D-ISO
-        path: |
-          build/*.iso
-          build/*.cue
-        if-no-files-found: error
+      - name: Compilar o seu jogo
+        run: |
+          mkdir build && cd build
+          cmake -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/psn00bsdk/psn00bsdk.cmake ..
+          make -j$(nproc)
