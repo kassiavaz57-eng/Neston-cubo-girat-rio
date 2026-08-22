@@ -41,7 +41,7 @@ jobs:
           make -j$(nproc)
           sudo make install
 
-      - name: Compilar o jogo e gerar ISO
+      - name: Compilar o jogo, converter e gerar ISO
         run: |
           # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
@@ -62,10 +62,19 @@ jobs:
           
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           
-          # PASSO 1: Compila apenas o executável do jogo primeiro e espera terminar
+          # PASSO 1: Compila o executável ELF do jogo
           make cubo_ps1_3d -j$(nproc)
           
-          # PASSO 2: Agora gera a ISO com a certeza absoluta de que o .elf já existe
+          # PASSO 2: Acha o conversor elf2exe do SDK e converte o .elf em um PS-X EXE de verdade
+          ELF2EXE_BIN=$(find $GITHUB_WORKSPACE/PSn00bSDK -name "elf2exe" | head -n 1)
+          if [ -z "$ELF2EXE_BIN" ]; then
+            ELF2EXE_BIN=$(sudo find /usr/local -name "elf2exe" | head -n 1)
+          fi
+          
+          echo "Convertendo ELF para o formato oficial do PS1 usando: $ELF2EXE_BIN"
+          "$ELF2EXE_BIN" cubo_ps1_3d.elf CUBO.EXE
+          
+          # PASSO 3: Gera a ISO incluindo o executável convertido
           make iso -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
