@@ -47,14 +47,19 @@ jobs:
           cd $GITHUB_WORKSPACE
           mkdir -p build && cd build
           
-          # Procura o arquivo DE DENTRO da pasta do SDK que a gente clonou
-          TOOLCHAIN_PATH=$(find $GITHUB_WORKSPACE/PSn00bSDK -name "psn00bsdk.cmake" | head -n 1)
+          # Acha o arquivo com o nome novo (sdk.cmake)
+          TOOLCHAIN_PATH=$(sudo find /usr/local $GITHUB_WORKSPACE/PSn00bSDK -name "sdk.cmake" | head -n 1)
           
           if [ -z "$TOOLCHAIN_PATH" ]; then
-            echo "Vish, o arquivo sumiu ate da pasta original!"
+            echo "Deu ruim, nem o arquivo com nome novo foi encontrado!"
             exit 1
           fi
           
-          echo "Achei o safado aqui: $TOOLCHAIN_PATH"
+          echo "Achei o arquivo disfarçado: $TOOLCHAIN_PATH"
+          
+          # Gambiarra máxima: cria um atalho pro seu CMakeLists antigo achar o arquivo no caminho velho
+          sudo mkdir -p /usr/local/share/psn00bsdk
+          sudo ln -sf "$TOOLCHAIN_PATH" /usr/local/share/psn00bsdk/psn00bsdk.cmake
+          
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           make -j$(nproc)
