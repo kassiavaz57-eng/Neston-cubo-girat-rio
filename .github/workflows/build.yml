@@ -19,46 +19,31 @@ jobs:
       - name: Instalar dependencias do sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build genisoimage curl tar unzip
+          sudo apt-get install -y build-essential cmake ninja-build genisoimage curl unzip git
 
-      - name: Baixar Toolchain e PSn00bSDK
+      - name: Baixar Toolchain MIPS Oficial
         run: |
-          # Baixa TODOS os arquivos de Linux do ultimo release (compilador + SDK)
-          curl -s https://api.github.com/repos/Lameguy64/PSn00bSDK/releases/latest \
-          | grep "browser_download_url" \
-          | grep -i "linux" \
-          | cut -d '"' -f 4 \
-          | while read -r url; do
-              echo "Baixando: $url"
-              curl -fLO "$url"
-            done
+          # Baixa o compilador GCC MIPS oficial do release v0.24
+          TOOLCHAIN_URL=$(curl -s https://api.github.com/repos/Lameguy64/PSn00bSDK/releases/latest | grep "browser_download_url" | grep -i "linux" | grep -i "gcc" | cut -d '"' -f 4 | head -n 1)
+          echo "Baixando compilador de: $TOOLCHAIN_URL"
+          curl -fLO "$TOOLCHAIN_URL"
+          sudo unzip -q -o *.zip -d /usr/local/
 
-          # Descompacta automaticamente tanto arquivos .zip quanto .tar.gz
-          for file in *; do
-            if [[ "$file" == *.zip ]]; then
-              echo "Descompactando ZIP: $file"
-              sudo unzip -q -o "$file" -d /usr/local/
-            elif [[ "$file" == *.tar.gz ]]; then
-              echo "Descompactando TAR.GZ: $file"
-              sudo tar -xzf "$file" -C /usr/local/
-            fi
-          done
+          # Adiciona a pasta do compilador diretamente no PATH do GitHub Actions
+          GCC_BIN_DIR=$(dirname $(find /usr/local -name "mipsel-none-elf-gcc" | head -n 1))
+          echo "$GCC_BIN_DIR" >> $GITHUB_PATH
 
-      - name: Compilar o jogo
+      - name: Compilar e Instalar PSn00bSDK
         run: |
+          git clone --recursive https://github.com/Lameguy64/PSn00bSDK.git
+          cd PSn00bSDK
           mkdir build && cd build
-          TOOLCHAIN_PATH=$(find /usr/local -name "psn00bsdk.cmake" | head -n 1)
-          if [ -z "$TOOLCHAIN_PATH" ]; then
-            echo "Erro: psn00bsdk.cmake nao encontrado!"
-            exit 1
-          fi
-          echo "Usando Toolchain em: $TOOLCHAIN_PATH"
-          cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
+          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
           make -j$(nproc)
+          sudo make install
 
       - name: Compilar o jogo
         run: |
           mkdir build && cd build
-          TOOLCHAIN_PATH=$(find /usr/local -name "psn00bsdk.cmake" | head -n 1)
-          cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
+          cmake -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/psn00bsdk/psn00bsdk.cmake ..
           make -j$(nproc)
