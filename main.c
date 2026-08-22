@@ -38,7 +38,6 @@ int g_prim_buffer_offset = 0;
 #define SPU_SPRS_ADDR 0x10100
 
 // Cube Geometry Definition
-// Vertices (x, y, z)
 static SVECTOR g_cube_vertices[8] = {
     { -100, -100, -100, 0 },
     {  100, -100, -100, 0 },
@@ -50,7 +49,6 @@ static SVECTOR g_cube_vertices[8] = {
     { -100,  100,  100, 0 }
 };
 
-// 6 Faces (4 indices per quad)
 static const int g_cube_indices[6][4] = {
     { 0, 1, 2, 3 }, // Front
     { 1, 5, 6, 2 }, // Right
@@ -60,7 +58,6 @@ static const int g_cube_indices[6][4] = {
     { 3, 2, 6, 7 }  // Bottom
 };
 
-// UV Coordinates for 128x128 quad
 static const DVECTOR g_uv_coords[4] = {
     {   0,   0 },
     { 127,   0 },
@@ -68,42 +65,56 @@ static const DVECTOR g_uv_coords[4] = {
     { 127, 127 }
 };
 
-// Rotation variables
 static SVECTOR g_rotation = { 0, 0, 0, 0 };
-static VECTOR g_translation = { 0, 0, 480 }; // Distance camera
+static VECTOR g_translation = { 0, 0, 480 };
+
+// --- A MÁGICA DO META TÁ AQUI ---
+static inline long my_RotTransPers4(SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECTOR *v3,
+                                    long *sxy0, long *sxy1, long *sxy2, long *sxy3,
+                                    long *otz, long *flag) {
+    long _nclip;
+    
+    // Projeta os 3 primeiros vértices
+    gte_ldv0(v0); gte_ldv1(v1); gte_ldv2(v2); gte_rtpt();
+    gte_stsxy0(sxy0); gte_stsxy1(sxy1); gte_stsxy2(sxy2);
+    
+    // Projeta o quarto vértice
+    gte_ldv0(v3); gte_rtps(); gte_stsxy(sxy3);
+    
+    // Pega a profundidade (Z)
+    gte_avsz4(); gte_stotz(otz);
+    
+    // Checa se a face tá virada pra câmera (Culling)
+    gte_ldv0(v0); gte_ldv1(v1); gte_ldv2(v2); gte_nclip(); gte_stopz(&_nclip);
+    
+    gte_stflag(flag);
+    return _nclip;
+}
+// --------------------------------
 
 void init_graphics() {
     ResetGraph(0);
-
-    // Initialize double buffer
     SetDefDispEnv(&g_buffers[0].disp, 0, 0, SCREEN_XRES, SCREEN_YRES);
     SetDefDrawEnv(&g_buffers[0].draw, 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
-
     SetDefDispEnv(&g_buffers[1].disp, 0, SCREEN_YRES, SCREEN_XRES, SCREEN_YRES);
     SetDefDrawEnv(&g_buffers[1].draw, 0, 0, SCREEN_XRES, SCREEN_YRES);
-
     g_buffers[0].draw.isbg = 1;
-    setRGB0(&g_buffers[0].draw, 0, 0, 0); // Black background
-
+    setRGB0(&g_buffers[0].draw, 0, 0, 0);
     g_buffers[1].draw.isbg = 1;
-    setRGB0(&g_buffers[1].draw, 0, 0, 0); // Black background
-
+    setRGB0(&g_buffers[1].draw, 0, 0, 0);
     PutDispEnv(&g_buffers[0].disp);
     PutDrawEnv(&g_buffers[0].draw);
-
-    // Initialize GTE
     InitGeom();
-    gte_SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2); // Center screen
-    gte_SetGeomScreen(256); // Perspective focal distance
+    gte_SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2);
+    gte_SetGeomScreen(256);
 }
 
 void upload_texture() {
     RECT rect_tex;
-    // 4bpp width in 16-bit VRAM words = 128 / 4 = 32
     rect_tex.x = TEX_VRAM_X;
     rect_tex.y = TEX_VRAM_Y;
-    rect_tex.w = NESTON_TEX_W / 4; 
-    rect_tex.h = NESTON_TEX_H;
+    rect_tex.w = NESTON_TEX_SIZE / 4; 
+    rect_tex.h = NESTON_TEX_SIZE;
     LoadImage(&rect_tex, (uint32_t*)neston_tex_bytes);
     DrawSync(0);
 
@@ -118,18 +129,12 @@ void upload_texture() {
 
 void init_sound() {
     SpuInit();
-
-    // Upload ADPCM sample to SPU RAM
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     SpuWrite((const uint32_t *)audio_adpcm_data, AUDIO_ADPCM_SIZE);
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
-
-    // Configure Voice 0
-    SpuSetVoiceVolume(0, 0x3FFF, 0x3FFF); // Max volume
-    SpuSetVoicePitch(0, 0x1000);          // Normal playback speed (1.0)
+    SpuSetVoiceVolume(0, 0x3FFF, 0x3FFF);
+    SpuSetVoicePitch(0, 0x1000);
     SpuSetVoiceStartAddr(0, SPU_SPRS_ADDR);
-    
-    // Key ON to play audio
     SpuSetKey(1, 1 << 0);
 }
 
@@ -138,11 +143,10 @@ int main() {
     upload_texture();
     init_sound();
 
-    // Compute Texture Page (tpage) and CLUT attributes
-    uint16_t tpage = getTPage(0, 0, TEX_VRAM_X, TEX_VRAM_Y); // 0 = 4bpp
+    uint16_t tpage = getTPage(0, 0, TEX_VRAM_X, TEX_VRAM_Y);
     uint16_t clut = getClut(CLUT_VRAM_X, CLUT_VRAM_Y);
 
-    SetDispMask(1); // Enable display
+    SetDispMask(1);
 
     while (1) {
         g_active_buffer ^= 1;
@@ -152,42 +156,35 @@ int main() {
 
         ClearOTagR(rb->ot, OT_LENGTH);
 
-        // Update Cube Rotation
         g_rotation.vx += 12;
         g_rotation.vy += 16;
         g_rotation.vz += 8;
 
-        // GTE Transformation Matrix setup
         MATRIX transform;
         RotMatrix(&g_rotation, &transform);
         TransMatrix(&transform, &g_translation);
         gte_SetRotMatrix(&transform);
         gte_SetTransMatrix(&transform);
 
-        // Render 6 faces
         for (int i = 0; i < 6; i++) {
             POLY_FT4* poly = (POLY_FT4*)(prim_ptr + g_prim_buffer_offset);
-            g_prim_buffer_offset += sizeof(POLY_FT4);
-
+            
             setPolyFT4(poly);
-            setRGB0(poly, 128, 128, 128); // Neutral lighting
-
-            // Set UV texture coordinates
+            setRGB0(poly, 128, 128, 128);
             setUV4(poly,
                 g_uv_coords[0].vx, g_uv_coords[0].vy,
                 g_uv_coords[1].vx, g_uv_coords[1].vy,
                 g_uv_coords[2].vx, g_uv_coords[2].vy,
                 g_uv_coords[3].vx, g_uv_coords[3].vy
             );
-
             poly->tpage = tpage;
             poly->clut = clut;
 
-            // Transform vertices with GTE (Tirado o gte_ daqui!)
-            long p, flag;
+            long flag;
             long otz;
-
-            RotTransPers4(
+            
+            // Usando a função nova aqui!
+            long nclip = my_RotTransPers4(
                 &g_cube_vertices[g_cube_indices[i][0]],
                 &g_cube_vertices[g_cube_indices[i][1]],
                 &g_cube_vertices[g_cube_indices[i][2]],
@@ -199,13 +196,13 @@ int main() {
                 &otz, &flag
             );
 
-            // Add to Ordering Table if visible and within depth bounds
-            if (otz > 0 && otz < OT_LENGTH) {
+            // Só desenha se tiver virado pra frente (nclip > 0) e no limite da tela
+            if (nclip > 0 && otz > 0 && otz < OT_LENGTH) {
+                g_prim_buffer_offset += sizeof(POLY_FT4);
                 addPrim(&rb->ot[otz], poly);
             }
         }
 
-        // Wait for VBlank and swap buffers
         VSync(0);
         PutDispEnv(&rb->disp);
         PutDrawEnv(&rb->draw);
