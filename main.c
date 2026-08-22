@@ -59,17 +59,17 @@ static const int g_cube_indices[6][4] = {
     { 3, 2, 6, 7 }  // Bottom
 };
 
-// UV Coordinates for 128x128 quad
-static const CVECTOR g_uv_coords[4] = {
-    {   0,   0, 0, 0 },
-    { 127,   0, 0, 0 },
-    {   0, 127, 0, 0 },
-    { 127, 127, 0, 0 }
+// UV Coordinates for 128x128 quad (Corrigido para DVECTOR)
+static const DVECTOR g_uv_coords[4] = {
+    {   0,   0 },
+    { 127,   0 },
+    {   0, 127 },
+    { 127, 127 }
 };
 
 // Rotation variables
 static SVECTOR g_rotation = { 0, 0, 0, 0 };
-static VECTOR g_translation = { 0, 0, 480, 0 }; // Distance camera
+static VECTOR g_translation = { 0, 0, 480 }; // Distance camera (Corrigido, sem o zero extra)
 
 void init_graphics() {
     ResetGraph(0);
@@ -90,10 +90,10 @@ void init_graphics() {
     PutDispEnv(&g_buffers[0].disp);
     PutDrawEnv(&g_buffers[0].draw);
 
-    // Initialize GTE
+    // Initialize GTE (Corrigido com prefixo gte_)
     InitGeom();
-    SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2); // Center screen
-    SetGeomScreen(256); // Perspective focal distance
+    gte_SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2); // Center screen
+    gte_SetGeomScreen(256); // Perspective focal distance
 }
 
 void upload_texture() {
@@ -117,26 +117,19 @@ void upload_texture() {
 
 void init_sound() {
     SpuInit();
-    SpuInitMalloc();
 
-    // Upload ADPCM sample to SPU RAM
+    // Upload ADPCM sample to SPU RAM (Ponteiro corrigido)
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
-    SpuWrite(audio_adpcm_data, AUDIO_ADPCM_SIZE);
+    SpuWrite((const uint32_t *)audio_adpcm_data, AUDIO_ADPCM_SIZE);
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
 
-    // Configure Voice 0
-    SpuVoiceAttr attr;
-    attr.mask = SPU_VOICE_VOICE | SPU_VOICE_PITCH | SPU_VOICE_WD_ADDR | SPU_VOICE_VOLUME;
-    attr.voice = SPU_VOICE_0;
-    attr.pitch = 0x1000; // Normal playback speed (1.0)
-    attr.addr = SPU_SPRS_ADDR;
-    attr.volume.left = 0x3FFF; // Max volume
-    attr.volume.right = 0x3FFF;
+    // Configure Voice 0 (Atualizado para a API nova do PSn00bSDK)
+    SpuSetVoiceVolume(0, 0x3FFF, 0x3FFF); // Max volume
+    SpuSetVoicePitch(0, 0x1000);          // Normal playback speed (1.0)
+    SpuSetVoiceStartAddr(0, SPU_SPRS_ADDR);
     
-    SpuSetVoiceAttr(&attr);
-
-    // Key ON to play audio
-    SpuSetKey(SPU_ON, SPU_VOICE_0);
+    // Key ON to play audio (Voz 0)
+    SpuSetKey(1, 1 << 0);
 }
 
 int main() {
@@ -163,12 +156,12 @@ int main() {
         g_rotation.vy += 16;
         g_rotation.vz += 8;
 
-        // GTE Transformation Matrix setup
+        // GTE Transformation Matrix setup (Corrigido com prefixo gte_)
         MATRIX transform;
         RotMatrix(&g_rotation, &transform);
         TransMatrix(&transform, &g_translation);
-        SetRotMatrix(&transform);
-        SetTransMatrix(&transform);
+        gte_SetRotMatrix(&transform);
+        gte_SetTransMatrix(&transform);
 
         // Render 6 faces
         for (int i = 0; i < 6; i++) {
@@ -189,11 +182,11 @@ int main() {
             poly->tpage = tpage;
             poly->clut = clut;
 
-            // Transform vertices with GTE
+            // Transform vertices with GTE (Corrigido com prefixo gte_)
             long p, flag;
             long otz;
 
-            RotTransPers4(
+            gte_RotTransPers4(
                 &g_cube_vertices[g_cube_indices[i][0]],
                 &g_cube_vertices[g_cube_indices[i][1]],
                 &g_cube_vertices[g_cube_indices[i][2]],
