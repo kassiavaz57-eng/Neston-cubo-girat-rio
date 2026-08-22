@@ -46,45 +46,21 @@ jobs:
           # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
           
-          # 1. Cria o SYSTEM.CNF na raiz do projeto
-          echo "Criando SYSTEM.CNF..."
+          # Cria o SYSTEM.CNF na raiz do projeto com segurança
+          echo "Criando SYSTEM.CNF na raiz..."
           echo "BOOT = cdrom:\CUBO_PS1_3D.EXE;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
           echo "EVENT = 16" >> SYSTEM.CNF
           echo "STACK = 801FFFF0" >> SYSTEM.CNF
           
-          # Prepara a pasta build
+          # Prepara a pasta build e roda o cmake apontando pra raiz
           mkdir -p build && cd build
           
-          # Acha o arquivo com o nome novo (sdk.cmake)
           TOOLCHAIN_PATH=$(sudo find /usr/local $GITHUB_WORKSPACE/PSn00bSDK -name "sdk.cmake" | head -n 1)
-          
-          if [ -z "$TOOLCHAIN_PATH" ]; then
-            echo "Deu ruim, nem o arquivo com nome novo foi encontrado!"
-            exit 1
-          fi
-          
-          echo "Achei o arquivo disfarçado: $TOOLCHAIN_PATH"
-          
-          # Gambiarra máxima: cria um atalho pro seu CMakeLists antigo achar o arquivo no caminho velho
           sudo mkdir -p /usr/local/share/psn00bsdk
           sudo ln -sf "$TOOLCHAIN_PATH" /usr/local/share/psn00bsdk/psn00bsdk.cmake
           
-          # Configura com o CMake
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
-          
-          # 2. Compila o binário do jogo (.elf)
-          make -j$(nproc)
-          
-          # 3. Joga o SYSTEM.CNF e o executável renomeado em maiúsculo PARA DENTRO da build
-          cp ../SYSTEM.CNF ./SYSTEM.CNF
-          if [ -f "cubo_ps1_3d.elf" ]; then
-            cp cubo_ps1_3d.elf CUBO_PS1_3D.EXE
-          elif [ -f "cubo_ps1_3d" ]; then
-            cp cubo_ps1_3d CUBO_PS1_3D.EXE
-          fi
-          
-          # 4. Roda o make de novo para o mkpsxiso achar tudo mastigado
           make -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
