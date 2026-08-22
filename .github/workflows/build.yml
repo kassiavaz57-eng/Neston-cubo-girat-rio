@@ -63,13 +63,20 @@ jobs:
           
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           
-          # --- MARRETADA DO SYSTEM.CNF INJETADA AQUI ---
-          echo "Criando SYSTEM.CNF na marra..."
-          echo "BOOT = cdrom:\CUBO_PS1_3D.EXE;1" > SYSTEM.CNF
+          # --- MARRETADA DEFINITIVA DO SYSTEM.CNF E DO CASING ---
+          echo "Criando SYSTEM.CNF..."
+          echo "BOOT = cdrom:\CUBO_PS1_3D.ELF;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
           echo "EVENT = 16" >> SYSTEM.CNF
           echo "STACK = 801FFFF0" >> SYSTEM.CNF
           
+          # Compila o executável primeiro
+          make cubo_ps1_3d -j$(nproc)
+          
+          # Copia o binário para o formato maiúsculo exato que o SYSTEM.CNF procura
+          cp cubo_ps1_3d.elf CUBO_PS1_3D.ELF
+          
+          # Roda o make final para montar a ISO com tudo no esquema
           make -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
