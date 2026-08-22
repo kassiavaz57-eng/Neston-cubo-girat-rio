@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+env:
+  PSN00BSDK: /usr/local
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,23 +16,23 @@ jobs:
     - name: Baixar codigo do repositorio
       uses: actions/checkout@v4
 
-    - name: Instalar compilador e ferramentas no Ubuntu
+    - name: Instalar dependencias e compilador MIPS no Ubuntu
       run: |
         sudo apt-get update
-        sudo apt-get install -y gcc-mipsel-linux-gnu g++-mipsel-linux-gnu cmake build-essential git libtinyxml2-dev
+        sudo apt-get install -y gcc-mipsel-linux-gnu g++-mipsel-linux-gnu cmake build-essential git libtinyxml2-dev pkg-config libpng-dev
 
     - name: Compilar e instalar mkpsxiso
       run: |
-        git clone https://github.com/Lameguy64/mkpsxiso.git
+        git clone --recursive https://github.com/Lameguy64/mkpsxiso.git
         cd mkpsxiso
         mkdir build && cd build
-        cmake ..
+        cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
         make -j$(nproc)
         sudo make install
 
     - name: Compilar e instalar PSn00bSDK (v0.24)
       run: |
-        git clone --branch v0.24 https://github.com/Lameguy64/PSn00bSDK.git
+        git clone --recursive --branch v0.24 https://github.com/Lameguy64/PSn00bSDK.git
         cd PSn00bSDK
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchain/gcc-mipsel-linux-gnu.cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
@@ -47,5 +50,6 @@ jobs:
       with:
         name: PS1-Cubo3D-ISO
         path: |
-          build/cubo_ps1_3d.iso
-          build/cubo_ps1_3d.cue
+          build/*.iso
+          build/*.cue
+        if-no-files-found: error
