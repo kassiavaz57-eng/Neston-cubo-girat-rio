@@ -23,15 +23,14 @@ jobs:
 
       - name: Baixar Toolchain MIPS Oficial
         run: |
-          # Baixa o compilador GCC MIPS oficial do release v0.24
           TOOLCHAIN_URL=$(curl -s https://api.github.com/repos/Lameguy64/PSn00bSDK/releases/latest | grep "browser_download_url" | grep -i "linux" | grep -i "gcc" | cut -d '"' -f 4 | head -n 1)
           echo "Baixando compilador de: $TOOLCHAIN_URL"
           curl -fLO "$TOOLCHAIN_URL"
           sudo unzip -q -o *.zip -d /usr/local/
-
-          # Adiciona a pasta do compilador diretamente no PATH do GitHub Actions
-          GCC_BIN_DIR=$(dirname $(find /usr/local -name "mipsel-none-elf-gcc" | head -n 1))
-          echo "$GCC_BIN_DIR" >> $GITHUB_PATH
+          
+          GCC_BIN=$(sudo find /usr/local -name "mipsel-none-elf-gcc" | head -n 1)
+          GCC_DIR=$(dirname "$GCC_BIN")
+          echo "$GCC_DIR" >> $GITHUB_PATH
 
       - name: Compilar e Instalar PSn00bSDK
         run: |
@@ -44,6 +43,18 @@ jobs:
 
       - name: Compilar o jogo
         run: |
+          # Volta pra raiz do seu repositório pra compilar o seu código
+          cd $GITHUB_WORKSPACE
           mkdir build && cd build
-          cmake -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/psn00bsdk/psn00bsdk.cmake ..
+          
+          # Localiza o psn00bsdk.cmake dinamicamente no sistema
+          TOOLCHAIN_PATH=$(sudo find /usr/local -name "psn00bsdk.cmake" | head -n 1)
+          
+          if [ -z "$TOOLCHAIN_PATH" ]; then
+            echo "Vish, não achou o psn00bsdk.cmake de jeito nenhum!"
+            exit 1
+          fi
+          
+          echo "Toolchain encontrada em: $TOOLCHAIN_PATH"
+          cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           make -j$(nproc)
