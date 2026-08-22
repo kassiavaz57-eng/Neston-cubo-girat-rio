@@ -19,21 +19,42 @@ jobs:
       - name: Instalar dependencias do sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build genisoimage curl tar
+          sudo apt-get install -y build-essential cmake ninja-build genisoimage curl tar unzip
 
       - name: Baixar Toolchain e PSn00bSDK
         run: |
-          # Acha o link do release de Linux mais recente na API do GitHub
-          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/Lameguy64/PSn00bSDK/releases/latest | grep "browser_download_url" | grep -i "linux" | cut -d '"' -f 4 | head -n 1)
-          
-          if [ -z "$DOWNLOAD_URL" ]; then
-            echo "Nenhum arquivo de Linux encontrado na API do GitHub!"
+          # Baixa TODOS os arquivos de Linux do ultimo release (compilador + SDK)
+          curl -s https://api.github.com/repos/Lameguy64/PSn00bSDK/releases/latest \
+          | grep "browser_download_url" \
+          | grep -i "linux" \
+          | cut -d '"' -f 4 \
+          | while read -r url; do
+              echo "Baixando: $url"
+              curl -fLO "$url"
+            done
+
+          # Descompacta automaticamente tanto arquivos .zip quanto .tar.gz
+          for file in *; do
+            if [[ "$file" == *.zip ]]; then
+              echo "Descompactando ZIP: $file"
+              sudo unzip -q -o "$file" -d /usr/local/
+            elif [[ "$file" == *.tar.gz ]]; then
+              echo "Descompactando TAR.GZ: $file"
+              sudo tar -xzf "$file" -C /usr/local/
+            fi
+          done
+
+      - name: Compilar o jogo
+        run: |
+          mkdir build && cd build
+          TOOLCHAIN_PATH=$(find /usr/local -name "psn00bsdk.cmake" | head -n 1)
+          if [ -z "$TOOLCHAIN_PATH" ]; then
+            echo "Erro: psn00bsdk.cmake nao encontrado!"
             exit 1
           fi
-          
-          echo "Baixando SDK de: $DOWNLOAD_URL"
-          curl -fL -o psn00bsdk.tar.gz "$DOWNLOAD_URL"
-          sudo tar -xzf psn00bsdk.tar.gz -C /usr/local/
+          echo "Usando Toolchain em: $TOOLCHAIN_PATH"
+          cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
+          make -j$(nproc)
 
       - name: Compilar o jogo
         run: |
