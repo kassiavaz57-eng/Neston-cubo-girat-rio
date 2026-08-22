@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <psxgpu.h>
 #include <psxgte.h>
-#include <inline_c.h> // <-- FALTAVA ESSA BELEZURA AQUI!
+#include <inline_c.h>
 #include <psxetc.h>
 #include <psxspu.h>
 
@@ -183,11 +183,11 @@ int main() {
             poly->tpage = tpage;
             poly->clut = clut;
 
-            // Transform vertices with GTE
+            // Transform vertices with GTE (Tirado o gte_ daqui!)
             long p, flag;
             long otz;
 
-            gte_RotTransPers4(
+            RotTransPers4(
                 &g_cube_vertices[g_cube_indices[i][0]],
                 &g_cube_vertices[g_cube_indices[i][1]],
                 &g_cube_vertices[g_cube_indices[i][2]],
