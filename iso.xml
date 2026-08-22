@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iso_project image_name="cubo_ps1_3d.iso" cue_sheet="cubo_ps1_3d.cue">
+    <track type="data">
+        <identifiers
+            system="PLAYSTATION"
+            application="PLAYSTATION"
+            volume="CUBO_3D"
+            volume_set="CUBO_3D"
+            publisher="HOMEBREW"
+            data_preparer="PSN00BSDK"
+        />
+        <directory_tree>
+            <file name="SYSTEM.CNF" source="SYSTEM.CNF" type="data" />
+            <file name="CUBO.EXE" source="cubo_ps1_3d.exe" type="data" />
+        </directory_tree>
+    </track>
+</iso_project>
