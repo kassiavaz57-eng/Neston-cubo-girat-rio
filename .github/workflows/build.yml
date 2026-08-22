@@ -46,9 +46,9 @@ jobs:
           # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
           
-          # Cria o SYSTEM.CNF na raiz do projeto com segurança
+          # Cria o SYSTEM.CNF na raiz apontando para o nome curto CUBO.EXE
           echo "Criando SYSTEM.CNF na raiz..."
-          echo "BOOT = cdrom:\CUBO_PS1_3D.EXE;1" > SYSTEM.CNF
+          echo "BOOT = cdrom:\CUBO.EXE;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
           echo "EVENT = 16" >> SYSTEM.CNF
           echo "STACK = 801FFFF0" >> SYSTEM.CNF
