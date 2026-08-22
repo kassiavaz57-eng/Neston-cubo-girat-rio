@@ -1,4 +1,4 @@
-Name: Build PS1 Game
+name: Build PS1 Game
 
 on:
   push:
