@@ -1,10 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
-include(psn00bsdk)
 
-project(cubo_ps1_3d)
+project(cubo_ps1_3d C ASM)
 
-# Use esta função do SDK em vez do add_executable comum!
-psn00bsdk_add_executable(cubo_ps1_3d main.c)
+# Adiciona o executável informando que ele é STATIC e o arquivo principal
+psn00bsdk_add_executable(cubo_ps1_3d STATIC main.c)
 
-# E o comando para criar a ISO usando o iso.xml que a gente ajustou:
+# Comando para gerar a ISO usando o nosso iso.xml
 psn00bsdk_add_cd_image(iso cubo_ps1_3d iso.xml)
