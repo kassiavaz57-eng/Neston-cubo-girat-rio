@@ -87,7 +87,7 @@ static inline long my_RotTransPers4(SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVECT
     // Checa se a face tá virada pra câmera (Culling)
     gte_ldv0(v0); gte_ldv1(v1); gte_ldv2(v2); gte_nclip(); gte_stopz(&_nclip);
     
-    gte_stflag(flag);
+    gte_stflg(flag); // <-- AQUI TAVA O ERRO! Tirei o "a" do stflag.
     return _nclip;
 }
 // --------------------------------
@@ -113,8 +113,9 @@ void upload_texture() {
     RECT rect_tex;
     rect_tex.x = TEX_VRAM_X;
     rect_tex.y = TEX_VRAM_Y;
-    rect_tex.w = NESTON_TEX_SIZE / 4; 
-    rect_tex.h = NESTON_TEX_SIZE;
+    // O aviso do TEX_H é porque no arquivo neston_tex.h o nome tá duplicado, mas não dá erro.
+    rect_tex.w = NESTON_TEX_H / 4; 
+    rect_tex.h = NESTON_TEX_H;
     LoadImage(&rect_tex, (uint32_t*)neston_tex_bytes);
     DrawSync(0);
 
