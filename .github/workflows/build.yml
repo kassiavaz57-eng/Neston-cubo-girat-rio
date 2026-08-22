@@ -23,14 +23,21 @@ jobs:
 
       - name: Baixar Toolchain e PSn00bSDK
         run: |
-          # Baixa o release v0.7.0 oficial do PSn00bSDK
-          curl -fL -o psn00bsdk.tar.gz https://github.com/Lameguy64/PSn00bSDK/releases/download/v0.7.0/psn00bsdk-v0.7.0-linux64.tar.gz
+          # Acha o link do release de Linux mais recente na API do GitHub
+          DOWNLOAD_URL=$(curl -s https://api.github.com/repos/Lameguy64/PSn00bSDK/releases/latest | grep "browser_download_url" | grep -i "linux" | cut -d '"' -f 4 | head -n 1)
+          
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "Nenhum arquivo de Linux encontrado na API do GitHub!"
+            exit 1
+          fi
+          
+          echo "Baixando SDK de: $DOWNLOAD_URL"
+          curl -fL -o psn00bsdk.tar.gz "$DOWNLOAD_URL"
           sudo tar -xzf psn00bsdk.tar.gz -C /usr/local/
 
       - name: Compilar o jogo
         run: |
           mkdir build && cd build
-          # Procura automaticamente o arquivo de toolchain do PSn00bSDK instalado
           TOOLCHAIN_PATH=$(find /usr/local -name "psn00bsdk.cmake" | head -n 1)
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           make -j$(nproc)
