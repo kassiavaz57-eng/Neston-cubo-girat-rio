@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: Lameguy64/psn00bsdk:latest
+      image: lameguy64/psn00bsdk:latest
 
     steps:
     - name: Baixar código do repositório
@@ -20,7 +20,7 @@ jobs:
       run: |
         mkdir build
         cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/psn00bsdk/gcc-mipsel-none-elf.cmake ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=$PSN00BSDK/share/psn00bsdk/gcc-mipsel-none-elf.cmake ..
         make iso
 
     - name: Salvar ISO e CUE como artefato
