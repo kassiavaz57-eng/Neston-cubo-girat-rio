@@ -46,8 +46,8 @@ jobs:
           # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
           
-          # --- CRIA O SYSTEM.CNF NA RAIZ ANTES DE TUDO ---
-          echo "Criando SYSTEM.CNF na raiz do projeto..."
+          # 1. Cria o SYSTEM.CNF na raiz do projeto
+          echo "Criando SYSTEM.CNF..."
           echo "BOOT = cdrom:\CUBO_PS1_3D.EXE;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
           echo "EVENT = 16" >> SYSTEM.CNF
@@ -70,10 +70,21 @@ jobs:
           sudo mkdir -p /usr/local/share/psn00bsdk
           sudo ln -sf "$TOOLCHAIN_PATH" /usr/local/share/psn00bsdk/psn00bsdk.cmake
           
-          # Roda o cmake apontando pra raiz (onde o SYSTEM.CNF agora mora)
+          # Configura com o CMake
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           
-          # Compila o código e monta a ISO de uma vez
+          # 2. Compila o binário do jogo (.elf)
+          make -j$(nproc)
+          
+          # 3. Joga o SYSTEM.CNF e o executável renomeado em maiúsculo PARA DENTRO da build
+          cp ../SYSTEM.CNF ./SYSTEM.CNF
+          if [ -f "cubo_ps1_3d.elf" ]; then
+            cp cubo_ps1_3d.elf CUBO_PS1_3D.EXE
+          elif [ -f "cubo_ps1_3d" ]; then
+            cp cubo_ps1_3d CUBO_PS1_3D.EXE
+          fi
+          
+          # 4. Roda o make de novo para o mkpsxiso achar tudo mastigado
           make -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
