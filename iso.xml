@@ -1,7 +1,9 @@
 <iso_project>
   <track type="data">
     <identifier system="PLAYSTATION" application="PLAYSTATION" volume="CUBO_3D" volume_set="CUBO_3D" publisher="HOMEBREW" preparer="PSN00BSDK"/>
-    <file name="SYSTEM.CNF" type="data" source="${PROJECT_SOURCE_DIR}/SYSTEM.CNF"/>
-    <file name="CUBO_PS1_3D.EXE" type="data" source="cubo_ps1_3d.elf"/>
+    <directory_tree>
+      <file name="SYSTEM.CNF" type="data" source="${PROJECT_SOURCE_DIR}/SYSTEM.CNF"/>
+      <file name="CUBO_PS1_3D.EXE" type="data" source="cubo_ps1_3d.elf"/>
+    </directory_tree>
   </track>
 </iso_project>
