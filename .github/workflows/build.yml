@@ -46,7 +46,7 @@ jobs:
           # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
           
-          # Cria o SYSTEM.CNF na raiz apontando para o nome curto CUBO.EXE
+          # Cria o SYSTEM.CNF na raiz apontando para o CUBO.EXE
           echo "Criando SYSTEM.CNF na raiz..."
           echo "BOOT = cdrom:\CUBO.EXE;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
@@ -61,6 +61,18 @@ jobs:
           sudo ln -sf "$TOOLCHAIN_PATH" /usr/local/share/psn00bsdk/psn00bsdk.cmake
           
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
+          make -j$(nproc)
+          
+          # --- CONVERSÃO MÁGICA: Transforma o .elf em um PS-X EXE de verdade ---
+          ELF2EXE_BIN=$(sudo find /usr/local -name "elf2exe" | head -n 1)
+          if [ -z "$ELF2EXE_BIN" ]; then
+            ELF2EXE_BIN="elf2exe"
+          fi
+          
+          echo "Convertendo ELF para o formato oficial do PS1..."
+          $ELF2EXE_BIN cubo_ps1_3d.elf CUBO.EXE
+          
+          # Roda o make final para atualizar a ISO com o executável convertido
           make -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
