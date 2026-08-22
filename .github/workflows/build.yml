@@ -61,7 +61,12 @@ jobs:
           sudo ln -sf "$TOOLCHAIN_PATH" /usr/local/share/psn00bsdk/psn00bsdk.cmake
           
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
-          make -j$(nproc)
+          
+          # PASSO 1: Compila apenas o executável do jogo primeiro e espera terminar
+          make cubo_ps1_3d -j$(nproc)
+          
+          # PASSO 2: Agora gera a ISO com a certeza absoluta de que o .elf já existe
+          make iso -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
         uses: actions/upload-artifact@v4
