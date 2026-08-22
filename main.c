@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <psxgpu.h>
 #include <psxgte.h>
+#include <inline_c.h> // <-- FALTAVA ESSA BELEZURA AQUI!
 #include <psxetc.h>
 #include <psxspu.h>
 
@@ -59,7 +60,7 @@ static const int g_cube_indices[6][4] = {
     { 3, 2, 6, 7 }  // Bottom
 };
 
-// UV Coordinates for 128x128 quad (Corrigido para DVECTOR)
+// UV Coordinates for 128x128 quad
 static const DVECTOR g_uv_coords[4] = {
     {   0,   0 },
     { 127,   0 },
@@ -69,7 +70,7 @@ static const DVECTOR g_uv_coords[4] = {
 
 // Rotation variables
 static SVECTOR g_rotation = { 0, 0, 0, 0 };
-static VECTOR g_translation = { 0, 0, 480 }; // Distance camera (Corrigido, sem o zero extra)
+static VECTOR g_translation = { 0, 0, 480 }; // Distance camera
 
 void init_graphics() {
     ResetGraph(0);
@@ -90,7 +91,7 @@ void init_graphics() {
     PutDispEnv(&g_buffers[0].disp);
     PutDrawEnv(&g_buffers[0].draw);
 
-    // Initialize GTE (Corrigido com prefixo gte_)
+    // Initialize GTE
     InitGeom();
     gte_SetGeomOffset(SCREEN_XRES / 2, SCREEN_YRES / 2); // Center screen
     gte_SetGeomScreen(256); // Perspective focal distance
@@ -118,17 +119,17 @@ void upload_texture() {
 void init_sound() {
     SpuInit();
 
-    // Upload ADPCM sample to SPU RAM (Ponteiro corrigido)
+    // Upload ADPCM sample to SPU RAM
     SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
     SpuWrite((const uint32_t *)audio_adpcm_data, AUDIO_ADPCM_SIZE);
     SpuIsTransferCompleted(SPU_TRANSFER_WAIT);
 
-    // Configure Voice 0 (Atualizado para a API nova do PSn00bSDK)
+    // Configure Voice 0
     SpuSetVoiceVolume(0, 0x3FFF, 0x3FFF); // Max volume
     SpuSetVoicePitch(0, 0x1000);          // Normal playback speed (1.0)
     SpuSetVoiceStartAddr(0, SPU_SPRS_ADDR);
     
-    // Key ON to play audio (Voz 0)
+    // Key ON to play audio
     SpuSetKey(1, 1 << 0);
 }
 
@@ -156,7 +157,7 @@ int main() {
         g_rotation.vy += 16;
         g_rotation.vz += 8;
 
-        // GTE Transformation Matrix setup (Corrigido com prefixo gte_)
+        // GTE Transformation Matrix setup
         MATRIX transform;
         RotMatrix(&g_rotation, &transform);
         TransMatrix(&transform, &g_translation);
@@ -182,7 +183,7 @@ int main() {
             poly->tpage = tpage;
             poly->clut = clut;
 
-            // Transform vertices with GTE (Corrigido com prefixo gte_)
+            // Transform vertices with GTE
             long p, flag;
             long otz;
 
