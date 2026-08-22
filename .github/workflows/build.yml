@@ -11,42 +11,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout do projeto
+      - name: Checkout do jogo
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - name: Instalar dependencias e compilador MIPS
+      - name: Instalar dependencias do sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            gcc-mipsel-linux-gnu \
-            g++-mipsel-linux-gnu \
-            genisoimage
+          sudo apt-get install -y build-essential cmake ninja-build genisoimage curl
 
-      - name: Criar atalhos pro PSn00bSDK (symlinks)
+      - name: Baixar Toolchain e PSn00bSDK pre-compilados
         run: |
-          sudo ln -sf /usr/bin/mipsel-linux-gnu-gcc /usr/local/bin/mipsel-none-elf-gcc
-          sudo ln -sf /usr/bin/mipsel-linux-gnu-g++ /usr/local/bin/mipsel-none-elf-g++
-          sudo ln -sf /usr/bin/mipsel-linux-gnu-as /usr/local/bin/mipsel-none-elf-as
-          sudo ln -sf /usr/bin/mipsel-linux-gnu-ld /usr/local/bin/mipsel-none-elf-ld
-          sudo ln -sf /usr/bin/mipsel-linux-gnu-ar /usr/local/bin/mipsel-none-elf-ar
-          sudo ln -sf /usr/bin/mipsel-linux-gnu-objcopy /usr/local/bin/mipsel-none-elf-objcopy
+          curl -LO https://github.com/Lameguy64/PSn00bSDK/releases/download/v0.8/psn00bsdk-v0.8-linux64.tar.gz || \
+          curl -LO https://github.com/Lameguy64/PSn00bSDK/releases/download/v0.7/psn00bsdk-v0.7-linux.tar.gz
+          sudo tar -xzf psn00bsdk-*.tar.gz -C /usr/local/
 
-      - name: Compilar e instalar PSn00bSDK
-        run: |
-          git clone --recursive https://github.com/Lameguy64/PSn00bSDK.git
-          cd PSn00bSDK
-          mkdir build && cd build
-          cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-          make -j$(nproc)
-          sudo make install
-
-      - name: Compilar o seu jogo
+      - name: Compilar o jogo
         run: |
           mkdir build && cd build
-          cmake -DCMAKE_TOOLCHAIN_FILE=/usr/local/share/psn00bsdk/psn00bsdk.cmake ..
+          PSN_CMAKE=$(find /usr/local -name "psn00bsdk.cmake" | head -n 1)
+          cmake -DCMAKE_TOOLCHAIN_FILE="$PSN_CMAKE" ..
           make -j$(nproc)
