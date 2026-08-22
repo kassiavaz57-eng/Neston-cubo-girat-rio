@@ -43,18 +43,18 @@ jobs:
 
       - name: Compilar o jogo
         run: |
-          # Volta pra raiz do seu repositório pra compilar o seu código
+          # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
-          mkdir build && cd build
+          mkdir -p build && cd build
           
-          # Localiza o psn00bsdk.cmake dinamicamente no sistema
-          TOOLCHAIN_PATH=$(sudo find /usr/local -name "psn00bsdk.cmake" | head -n 1)
+          # Procura o arquivo DE DENTRO da pasta do SDK que a gente clonou
+          TOOLCHAIN_PATH=$(find $GITHUB_WORKSPACE/PSn00bSDK -name "psn00bsdk.cmake" | head -n 1)
           
           if [ -z "$TOOLCHAIN_PATH" ]; then
-            echo "Vish, não achou o psn00bsdk.cmake de jeito nenhum!"
+            echo "Vish, o arquivo sumiu ate da pasta original!"
             exit 1
           fi
           
-          echo "Toolchain encontrada em: $TOOLCHAIN_PATH"
+          echo "Achei o safado aqui: $TOOLCHAIN_PATH"
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           make -j$(nproc)
