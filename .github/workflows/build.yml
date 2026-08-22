@@ -46,13 +46,14 @@ jobs:
           # Volta pra raiz do repositório
           cd $GITHUB_WORKSPACE
           
-          # Garante o SYSTEM.CNF na raiz apontando para o CUBO.EXE
+          # Cria o SYSTEM.CNF na raiz apontando para o CUBO.EXE
+          echo "Criando SYSTEM.CNF na raiz..."
           echo "BOOT = cdrom:\CUBO.EXE;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
           echo "EVENT = 16" >> SYSTEM.CNF
           echo "STACK = 801FFFF0" >> SYSTEM.CNF
           
-          # Prepara a pasta build e roda o processo padrão do CMake
+          # Prepara a pasta build e roda o cmake apontando pra raiz
           mkdir -p build && cd build
           
           TOOLCHAIN_PATH=$(sudo find /usr/local $GITHUB_WORKSPACE/PSn00bSDK -name "sdk.cmake" | head -n 1)
