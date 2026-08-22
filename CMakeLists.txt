@@ -1,26 +1,10 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.13)
+include(psn00bsdk)
 
-project(cubo_ps1_3d LANGUAGES C ASM)
+project(cubo_ps1_3d)
 
-# Add homebrew executable target
-psn00bsdk_add_executable(cubo_ps1_3d GPREL main.c)
+# Use esta função do SDK em vez do add_executable comum!
+psn00bsdk_add_executable(cubo_ps1_3d main.c)
 
-# Link PSn00bSDK libraries
-target_link_libraries(
-    cubo_ps1_3d
-    PUBLIC
-    psxgpu
-    psxgte
-    psxetc
-    psxspu
-    psxapi
-    c
-)
-
-# Build ISO Image
-psn00bsdk_add_cd_image(
-    iso
-    cubo_ps1_3d
-    iso.xml
-    DEPENDS cubo_ps1_3d
-)
+# E o comando para criar a ISO usando o iso.xml que a gente ajustou:
+psn00bsdk_add_cd_image(iso cubo_ps1_3d iso.xml)
