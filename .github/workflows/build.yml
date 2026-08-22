@@ -63,20 +63,31 @@ jobs:
           
           cmake -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN_PATH" ..
           
-          # --- MARRETADA DEFINITIVA DO SYSTEM.CNF E DO CASING ---
+          # Compila o projeto primeiro para gerar os binários
+          make -j$(nproc)
+          
+          # Mostra o que tem na pasta build para conferência no log
+          ls -la
+          
+          # --- CRIANDO O SYSTEM.CNF APONTANDO PARA .EXE ---
           echo "Criando SYSTEM.CNF..."
-          echo "BOOT = cdrom:\CUBO_PS1_3D.ELF;1" > SYSTEM.CNF
+          echo "BOOT = cdrom:\CUBO_PS1_3D.EXE;1" > SYSTEM.CNF
           echo "TCB = 4" >> SYSTEM.CNF
           echo "EVENT = 16" >> SYSTEM.CNF
           echo "STACK = 801FFFF0" >> SYSTEM.CNF
           
-          # Compila o executável primeiro
-          make cubo_ps1_3d -j$(nproc)
+          # Pega o executável gerado (procura por .exe ou o arquivo principal) e joga em maiúsculo pra ISO achar
+          if [ -f "cubo_ps1_3d.exe" ]; then
+            cp cubo_ps1_3d.exe CUBO_PS1_3D.EXE
+          elif [ -f "cubo_ps1_3d" ]; then
+            cp cubo_ps1_3d CUBO_PS1_3D.EXE
+          else
+            # Se gerar com outro nome, pega o primeiro binário executável válido
+            cp $(find . -maxdepth 1 -type f -executable ! -name "*.elf" | head -n 1) CUBO_PS1_3D.EXE
+          fi
           
-          # Copia o binário para o formato maiúsculo exato que o SYSTEM.CNF procura
-          cp cubo_ps1_3d.elf CUBO_PS1_3D.ELF
-          
-          # Roda o make final para montar a ISO com tudo no esquema
+          # Roda o make de novo para empacotar a ISO com o executável correto dentro
+          make clean
           make -j$(nproc)
 
       - name: Salvar ISO do Jogo como Artefato
