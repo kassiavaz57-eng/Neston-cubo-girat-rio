@@ -389,17 +389,22 @@ static void init_sound_finish(void) {
     );
 
     /*
-     * Volume mais baixo.
-     *
-     * Se ainda distorcer, o problema provavelmente
-     * está no sample de origem (ganho/normalização
-     * antes de converter pra ADPCM), não aqui —
-     * ver nota no fim do arquivo.
+     * Master volume um pouco mais baixo (evita o
+     * áudio sair estourado no hardware real e em
+     * emuladores mais precisos).
+     */
+    SpuSetCommonMasterVolume(0x2000, 0x2000);
+
+    /*
+     * Volume da voz bem mais baixo.
+     * 0x3FFF = máximo
+     * 0x1800 = antigo (ainda estourava)
+     * 0x0A00 ≈ 15% — bem mais civilizado
      */
     SpuSetVoiceVolume(
         0,
-        0x1800,
-        0x1800
+        0x0A00,
+        0x0A00
     );
 
     /*
