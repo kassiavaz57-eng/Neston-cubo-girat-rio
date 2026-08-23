@@ -14,8 +14,26 @@
 #define SCREEN_YRES 240
 #define OT_LENGTH 1024
 
+#define PRIM_BUFFER_SIZE 4096
+
 /* ============================================================
-   RENDER BUFFER
+   VRAM
+   ============================================================ */
+
+#define TEX_VRAM_X 640
+#define TEX_VRAM_Y 0
+
+#define CLUT_VRAM_X 0
+#define CLUT_VRAM_Y 480
+
+/* ============================================================
+   SPU
+   ============================================================ */
+
+#define SPU_SPRS_ADDR 0x10100
+
+/* ============================================================
+   FRAMEBUFFERS
    ============================================================ */
 
 typedef struct {
@@ -25,45 +43,12 @@ typedef struct {
 } RenderBuffer;
 
 static RenderBuffer g_buffers[2];
+
 static int g_active_buffer = 0;
 
-/* ============================================================
-   PRIMITIVE BUFFER
-   ============================================================ */
-
-#define PRIM_BUFFER_SIZE 4096
-
 static uint8_t g_prim_buffer[2][PRIM_BUFFER_SIZE];
+
 static int g_prim_buffer_offset = 0;
-
-/* ============================================================
-   VRAM
-   ============================================================ */
-
-/*
- * Textura 4-bit:
- *
- * 128 pixels / 2 pixels por word = 64 words
- * 128 linhas
- */
-#define TEX_VRAM_X 640
-#define TEX_VRAM_Y 0
-
-/* CLUT de 16 cores */
-#define CLUT_VRAM_X 0
-#define CLUT_VRAM_Y 480
-
-/* ============================================================
-   SPU
-   ============================================================ */
-
-/*
- * Endereço seguro dentro da RAM do SPU.
- *
- * 0x10100 é alinhado e deixa espaço para a região inicial
- * reservada pelo sistema.
- */
-#define SPU_SPRS_ADDR 0x10100
 
 /* ============================================================
    CUBO
@@ -92,9 +77,6 @@ static const int g_cube_indices[6][4] = {
 
 /*
  * Textura 128x128.
- *
- * Os UVs terminam em 127 porque o último texel válido
- * está na posição 127.
  */
 static const DVECTOR g_uv_coords[4] = {
     {   0,   0 },
@@ -103,15 +85,16 @@ static const DVECTOR g_uv_coords[4] = {
     { 127, 127 }
 };
 
-static SVECTOR g_rotation = { 0, 0, 0, 0 };
+static SVECTOR g_rotation = {
+    0, 0, 0, 0
+};
 
-/*
- * Distância do cubo da câmera.
- */
-static VECTOR g_translation = { 0, 0, 480 };
+static VECTOR g_translation = {
+    0, 0, 480
+};
 
 /* ============================================================
-   GTE - TRANSFORMAÇÃO DOS 4 VÉRTICES
+   GTE
    ============================================================ */
 
 static inline long my_RotTransPers4(
@@ -131,7 +114,7 @@ static inline long my_RotTransPers4(
     long nclip;
 
     /*
-     * Primeiro triângulo.
+     * Primeiros três vértices.
      */
     gte_ldv0(v0);
     gte_ldv1(v1);
@@ -147,14 +130,16 @@ static inline long my_RotTransPers4(
      * Quarto vértice.
      */
     gte_ldv0(v3);
+
     gte_rtps();
 
     gte_stsxy(sxy3);
 
     /*
-     * Profundidade média dos quatro vértices.
+     * Profundidade.
      */
     gte_avsz4();
+
     gte_stotz(otz);
 
     /*
@@ -165,11 +150,9 @@ static inline long my_RotTransPers4(
     gte_ldv2(v2);
 
     gte_nclip();
+
     gte_stopz(&nclip);
 
-    /*
-     * Flags do GTE.
-     */
     gte_stflg(flag);
 
     return nclip;
@@ -180,10 +163,11 @@ static inline long my_RotTransPers4(
    ============================================================ */
 
 static void init_graphics(void) {
+
     ResetGraph(0);
 
     /*
-     * Buffer 0
+     * Buffer 0.
      */
     SetDefDispEnv(
         &g_buffers[0].disp,
@@ -202,7 +186,7 @@ static void init_graphics(void) {
     );
 
     /*
-     * Buffer 1
+     * Buffer 1.
      */
     SetDefDispEnv(
         &g_buffers[1].disp,
@@ -224,16 +208,31 @@ static void init_graphics(void) {
      * Fundo preto.
      */
     g_buffers[0].draw.isbg = 1;
-    setRGB0(&g_buffers[0].draw, 0, 0, 0);
+    setRGB0(
+        &g_buffers[0].draw,
+        0,
+        0,
+        0
+    );
 
     g_buffers[1].draw.isbg = 1;
-    setRGB0(&g_buffers[1].draw, 0, 0, 0);
+    setRGB0(
+        &g_buffers[1].draw,
+        0,
+        0,
+        0
+    );
 
-    PutDispEnv(&g_buffers[0].disp);
-    PutDrawEnv(&g_buffers[0].draw);
+    PutDispEnv(
+        &g_buffers[0].disp
+    );
+
+    PutDrawEnv(
+        &g_buffers[0].draw
+    );
 
     /*
-     * Inicializa GTE.
+     * GTE.
      */
     InitGeom();
 
@@ -250,18 +249,22 @@ static void init_graphics(void) {
    ============================================================ */
 
 static void upload_texture(void) {
+
     RECT rect_tex;
 
     /*
-     * 4bpp:
+     * IMPORTANTE:
      *
-     * 128 pixels de largura
-     * 2 pixels por word
-     * = 64 words
+     * 4 bits por pixel.
+     *
+     * Uma palavra de 16 bits contém 4 pixels.
+     *
+     * 128 / 4 = 32 palavras por linha.
      */
     rect_tex.x = TEX_VRAM_X;
     rect_tex.y = TEX_VRAM_Y;
-    rect_tex.w = NESTON_TEX_W / 2;
+
+    rect_tex.w = NESTON_TEX_W / 4;
     rect_tex.h = NESTON_TEX_H;
 
     LoadImage(
@@ -270,19 +273,18 @@ static void upload_texture(void) {
     );
 
     /*
-     * Garante que a transferência da textura terminou
-     * antes de continuar.
+     * Espera a transferência da textura.
      */
     DrawSync(0);
 
     /*
-     * CLUT 4-bit:
-     * 16 cores x 1 linha.
+     * CLUT de 16 cores.
      */
     RECT rect_clut;
 
     rect_clut.x = CLUT_VRAM_X;
     rect_clut.y = CLUT_VRAM_Y;
+
     rect_clut.w = 16;
     rect_clut.h = 1;
 
@@ -291,6 +293,9 @@ static void upload_texture(void) {
         (uint32_t *)neston_clut
     );
 
+    /*
+     * Espera a CLUT.
+     */
     DrawSync(0);
 }
 
@@ -299,18 +304,21 @@ static void upload_texture(void) {
    ============================================================ */
 
 static void init_sound(void) {
+
     /*
      * Inicializa SPU.
      */
     SpuInit();
 
     /*
-     * Transferência DMA.
+     * Usa DMA.
      */
-    SpuSetTransferMode(SPU_TRANSFER_BY_DMA);
+    SpuSetTransferMode(
+        SPU_TRANSFER_BY_DMA
+    );
 
     /*
-     * Para a voz antes de mexer nela.
+     * Para a voz antes da configuração.
      */
     SpuSetKey(
         0,
@@ -318,17 +326,15 @@ static void init_sound(void) {
     );
 
     /*
-     * IMPORTANTE:
-     *
-     * Define explicitamente onde o ADPCM será escrito
-     * na RAM do SPU.
+     * DEFINE EXPLICITAMENTE o endereço
+     * da transferência na RAM do SPU.
      */
     SpuSetTransferStartAddr(
         SPU_SPRS_ADDR
     );
 
     /*
-     * Copia o ADPCM para a RAM do SPU.
+     * Envia o ADPCM.
      */
     SpuWrite(
         (const uint32_t *)audio_adpcm_data,
@@ -343,21 +349,19 @@ static void init_sound(void) {
     );
 
     /*
-     * Volume reduzido.
+     * Volume mais baixo.
      *
-     * O valor anterior 0x3FFF estava bastante alto.
+     * Se ainda distorcer, podemos reduzir
+     * mais na próxima build.
      */
     SpuSetVoiceVolume(
         0,
-        0x2400,
-        0x2400
+        0x1800,
+        0x1800
     );
 
     /*
-     * Pitch padrão.
-     *
-     * Mantemos 0x1000 por enquanto para não alterar
-     * a velocidade original do áudio.
+     * Pitch.
      */
     SpuSetVoicePitch(
         0,
@@ -365,7 +369,7 @@ static void init_sound(void) {
     );
 
     /*
-     * Endereço inicial do sample.
+     * Endereço do sample.
      */
     SpuSetVoiceStartAddr(
         0,
@@ -373,7 +377,7 @@ static void init_sound(void) {
     );
 
     /*
-     * Inicia a voz 0.
+     * Começa a tocar.
      */
     SpuSetKey(
         1,
@@ -386,15 +390,18 @@ static void init_sound(void) {
    ============================================================ */
 
 int main(void) {
+
     /*
      * Inicialização.
      */
     init_graphics();
+
     upload_texture();
+
     init_sound();
 
     /*
-     * Página da textura.
+     * Texture page:
      *
      * 0 = 4-bit
      * 0 = sem semi-transparência
@@ -415,11 +422,12 @@ int main(void) {
     );
 
     /*
-     * Liga vídeo.
+     * Liga display.
      */
     SetDispMask(1);
 
     while (1) {
+
         /*
          * Alterna framebuffer.
          */
@@ -449,7 +457,7 @@ int main(void) {
         g_rotation.vz += 8;
 
         /*
-         * Cria matriz de transformação.
+         * Matriz.
          */
         MATRIX transform;
 
@@ -463,9 +471,6 @@ int main(void) {
             &g_translation
         );
 
-        /*
-         * Envia matriz ao GTE.
-         */
         gte_SetRotMatrix(
             &transform
         );
@@ -475,11 +480,12 @@ int main(void) {
         );
 
         /*
-         * Renderiza as seis faces.
+         * Seis faces.
          */
         for (int i = 0; i < 6; i++) {
+
             /*
-             * Proteção contra overflow do primitive buffer.
+             * Proteção.
              */
             if (
                 g_prim_buffer_offset +
@@ -496,14 +502,15 @@ int main(void) {
                 );
 
             /*
-             * Inicializa primitiva.
+             * Inicializa.
              */
             setPolyFT4(poly);
 
             /*
-             * Multiplicador de cor.
+             * Cor neutra.
              *
-             * 128 = iluminação neutra.
+             * Isso é importante para a textura
+             * não ficar artificialmente escurecida.
              */
             setRGB0(
                 poly,
@@ -513,7 +520,7 @@ int main(void) {
             );
 
             /*
-             * UVs.
+             * UV.
              */
             setUV4(
                 poly,
@@ -532,7 +539,7 @@ int main(void) {
             );
 
             /*
-             * Textura.
+             * Texture page + CLUT.
              */
             poly->tpage = tpage;
             poly->clut = clut;
@@ -541,7 +548,7 @@ int main(void) {
             long otz;
 
             /*
-             * Transforma os quatro vértices.
+             * Transformação.
              */
             long nclip =
                 my_RotTransPers4(
@@ -571,16 +578,14 @@ int main(void) {
                 );
 
             /*
-             * Só desenha faces visíveis.
+             * Só adiciona faces visíveis.
              */
             if (
                 nclip > 0 &&
                 otz > 0 &&
                 otz < OT_LENGTH
             ) {
-                /*
-                 * Adiciona primitiva ao buffer.
-                 */
+
                 g_prim_buffer_offset +=
                     sizeof(POLY_FT4);
 
@@ -592,13 +597,10 @@ int main(void) {
         }
 
         /*
-         * Espera o próximo frame.
+         * Sincroniza frame.
          */
         VSync(0);
 
-        /*
-         * Troca buffers.
-         */
         PutDispEnv(
             &rb->disp
         );
@@ -608,7 +610,7 @@ int main(void) {
         );
 
         /*
-         * Desenha Ordering Table.
+         * Renderiza.
          */
         DrawOTag(
             (uint32_t *)&rb->ot[
