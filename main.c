@@ -66,13 +66,32 @@ static SVECTOR g_cube_vertices[8] = {
     { -100,  100,  100, 0 }
 };
 
+/*
+ * IMPORTANTE:
+ *
+ * O POLY_FT4 (e o POLY_G4) do PS1 espera os 4 vértices
+ * no padrão "Z":
+ *
+ *   v0 --- v1
+ *   |       |
+ *   v2 --- v3
+ *
+ * ou seja, v1-v2 tem que ser uma DIAGONAL do quadrado,
+ * não uma aresta. A GPU desenha o quad como dois
+ * triângulos (v0,v1,v2) e (v1,v2,v3) internamente.
+ *
+ * Os índices abaixo estavam em ordem de perímetro
+ * (andando pela borda do quadrado), o que faz v1-v2
+ * ser uma aresta em vez de diagonal — daí o quad sair
+ * torto/"borboleta" com a textura cortada na diagonal.
+ */
 static const int g_cube_indices[6][4] = {
-    { 0, 1, 2, 3 },
-    { 1, 5, 6, 2 },
-    { 5, 4, 7, 6 },
-    { 4, 0, 3, 7 },
-    { 4, 5, 1, 0 },
-    { 3, 2, 6, 7 }
+    { 3, 2, 0, 1 },
+    { 2, 6, 1, 5 },
+    { 6, 7, 5, 4 },
+    { 7, 3, 4, 0 },
+    { 0, 1, 4, 5 },
+    { 7, 6, 3, 2 }
 };
 
 /*
@@ -127,6 +146,24 @@ static inline long my_RotTransPers4(
     gte_stsxy2(sxy2);
 
     /*
+     * Backface culling.
+     *
+     * IMPORTANTE: isso precisa rodar AQUI, logo após o
+     * rtpt(), enquanto o FIFO de SXY ainda contém
+     * v0,v1,v2. Se a gente chamar rtps() do 4º vértice
+     * antes, o FIFO desliza (SXY0<-v1, SXY1<-v2, SXY2<-v3)
+     * e o nclip passa a testar o triângulo v1,v2,v3 em
+     * vez de v0,v1,v2 (era isso que o código antigo fazia,
+     * recarregando v0,v1,v2 nos registradores errados —
+     * gte_nclip() não lê V0/V1/V2, ele lê o FIFO de SXY).
+     */
+    gte_nclip();
+
+    gte_stopz(&nclip);
+
+    gte_stflg(flag);
+
+    /*
      * Quarto vértice.
      */
     gte_ldv0(v3);
@@ -141,19 +178,6 @@ static inline long my_RotTransPers4(
     gte_avsz4();
 
     gte_stotz(otz);
-
-    /*
-     * Backface culling.
-     */
-    gte_ldv0(v0);
-    gte_ldv1(v1);
-    gte_ldv2(v2);
-
-    gte_nclip();
-
-    gte_stopz(&nclip);
-
-    gte_stflg(flag);
 
     return nclip;
 }
@@ -303,7 +327,14 @@ static void upload_texture(void) {
    ÁUDIO
    ============================================================ */
 
-static void init_sound(void) {
+/*
+ * Dispara a transferência do ADPCM pra RAM da SPU
+ * SEM esperar terminar. A DMA da SPU é um canal
+ * separado da DMA da GPU (usada no upload_texture),
+ * então as duas podem rodar ao mesmo tempo — é só
+ * não bloquear aqui.
+ */
+static void init_sound_start(void) {
 
     /*
      * Inicializa SPU.
@@ -334,15 +365,24 @@ static void init_sound(void) {
     );
 
     /*
-     * Envia o ADPCM.
+     * Envia o ADPCM (não bloqueia).
      */
     SpuWrite(
         (const uint32_t *)audio_adpcm_data,
         AUDIO_ADPCM_SIZE
     );
+}
+
+/*
+ * Espera a transferência (que já rodou em paralelo
+ * com upload_texture) terminar e liga a voz.
+ */
+static void init_sound_finish(void) {
 
     /*
-     * Espera a DMA terminar.
+     * Espera a DMA terminar. Como foi disparada antes
+     * do upload_texture, na prática já deve estar
+     * pronta ou faltar bem pouco quando chegamos aqui.
      */
     SpuIsTransferCompleted(
         SPU_TRANSFER_WAIT
@@ -351,8 +391,10 @@ static void init_sound(void) {
     /*
      * Volume mais baixo.
      *
-     * Se ainda distorcer, podemos reduzir
-     * mais na próxima build.
+     * Se ainda distorcer, o problema provavelmente
+     * está no sample de origem (ganho/normalização
+     * antes de converter pra ADPCM), não aqui —
+     * ver nota no fim do arquivo.
      */
     SpuSetVoiceVolume(
         0,
@@ -396,9 +438,16 @@ int main(void) {
      */
     init_graphics();
 
+    /*
+     * Dispara a DMA do som primeiro e deixa ela rodar
+     * em paralelo com o upload da textura (DMA da GPU),
+     * em vez de esperar uma terminar pra começar a outra.
+     */
+    init_sound_start();
+
     upload_texture();
 
-    init_sound();
+    init_sound_finish();
 
     /*
      * Texture page:
